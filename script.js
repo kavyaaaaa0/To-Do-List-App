@@ -1,23 +1,65 @@
 let todos = JSON.parse(localStorage.getItem('todos')) || [];
 let todoIdCounter = parseInt(localStorage.getItem('todoIdCounter')) || 0;
+let currentView = 'today';
 
 document.addEventListener('DOMContentLoaded', function() {
     renderTodos();
     updateStats();
+    setupEventListeners();
+    updateEmptyState();
+});
+
+function setupEventListeners() {
+    const todoInput = document.getElementById('todoInput');
     
-    document.getElementById('todoInput').addEventListener('keypress', function(e) {
+    todoInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             addTodo();
         }
     });
-});
+    
+    todoInput.addEventListener('focus', function() {
+        this.parentElement.style.transform = 'translateY(-2px)';
+        this.parentElement.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.4)';
+    });
+    
+    todoInput.addEventListener('blur', function() {
+        this.parentElement.style.transform = '';
+        this.parentElement.style.boxShadow = '';
+    });
+    
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', function() {
+            switchView(this.dataset.view);
+        });
+    });
+}
+
+function switchView(view) {
+    currentView = view;
+    
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    document.querySelector(`[data-view="${view}"]`).classList.add('active');
+    document.getElementById('viewTitle').textContent = view;
+    
+    renderTodos();
+}
 
 function addTodo() {
     const input = document.getElementById('todoInput');
     const todoText = input.value.trim();
     
     if (todoText === '') {
-        alert('please enter a task');
+        input.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+        input.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.1)';
+        
+        setTimeout(() => {
+            input.style.borderColor = '';
+            input.style.boxShadow = '';
+        }, 2000);
         return;
     }
     
@@ -34,86 +76,107 @@ function addTodo() {
     saveTodos();
     renderTodos();
     updateStats();
+    updateEmptyState();
     
-    const todoList = document.getElementById('todoList');
-    const lastItem = todoList.lastElementChild;
-    if (lastItem) {
-        lastItem.style.opacity = '0';
-        lastItem.style.transform = 'translateY(-20px)';
+    const newItem = document.querySelector('.task-item:last-child');
+    if (newItem) {
+        newItem.classList.add('adding');
         setTimeout(() => {
-            lastItem.style.opacity = '1';
-            lastItem.style.transform = 'translateY(0)';
-        }, 100);
+            newItem.classList.remove('adding');
+        }, 400);
     }
 }
 
 function toggleTodo(id) {
-    todos = todos.map(todo => 
-        todo.id === id ? { ...todo, completed: !todo.completed } : todo
-    );
+    const todoElement = document.querySelector(`[data-todo-id="${id}"]`);
+    const checkbox = todoElement.querySelector('.task-checkbox');
     
-    saveTodos();
-    renderTodos();
-    updateStats();
+    checkbox.classList.add('animating');
+    
+    setTimeout(() => {
+        todos = todos.map(todo => 
+            todo.id === id ? { ...todo, completed: !todo.completed } : todo
+        );
+        
+        saveTodos();
+        renderTodos();
+        updateStats();
+        updateEmptyState();
+        
+        checkbox.classList.remove('animating');
+    }, 150);
 }
 
 function deleteTodo(id) {
-    if (confirm('delete this task?')) {
+    const todoElement = document.querySelector(`[data-todo-id="${id}"]`);
+    todoElement.classList.add('removing');
+    
+    setTimeout(() => {
         todos = todos.filter(todo => todo.id !== id);
         saveTodos();
         renderTodos();
         updateStats();
-    }
+        updateEmptyState();
+    }, 300);
 }
 
 function clearCompleted() {
     const completedCount = todos.filter(todo => todo.completed).length;
     
     if (completedCount === 0) {
-        alert('no completed tasks to clear');
         return;
     }
     
-    if (confirm(`clear ${completedCount} completed tasks?`)) {
+    const completedTasks = document.querySelectorAll('.task-item.completed');
+    
+    completedTasks.forEach((task, index) => {
+        setTimeout(() => {
+            task.classList.add('removing');
+        }, index * 100);
+    });
+    
+    setTimeout(() => {
         todos = todos.filter(todo => !todo.completed);
         saveTodos();
         renderTodos();
         updateStats();
-    }
+        updateEmptyState();
+    }, completedTasks.length * 100 + 300);
 }
 
 function renderTodos() {
     const todoList = document.getElementById('todoList');
     todoList.innerHTML = '';
     
-    if (todos.length === 0) {
-        todoList.innerHTML = '<li style="text-align: center; color: #666; font-style: italic; padding: 20px;">no tasks yet, add one above</li>';
-        return;
-    }
-    
     const sortedTodos = [...todos].sort((a, b) => {
         if (a.completed && !b.completed) return 1;
         if (!a.completed && b.completed) return -1;
-        return 0;
+        return new Date(b.createdAt) - new Date(a.createdAt);
     });
     
     sortedTodos.forEach(todo => {
-        const li = document.createElement('li');
-        li.className = `todo-item ${todo.completed ? 'completed' : ''}`;
+        const div = document.createElement('div');
+        div.className = `task-item ${todo.completed ? 'completed' : ''}`;
+        div.setAttribute('data-todo-id', todo.id);
         
-        li.innerHTML = `
-            <span class="todo-text">${escapeHtml(todo.text)}</span>
-            <div class="todo-actions">
-                <button class="complete-btn" onclick="toggleTodo(${todo.id})">
-                    ${todo.completed ? 'undo' : 'done'}
-                </button>
-                <button class="delete-btn" onclick="deleteTodo(${todo.id})">
-                    delete
+        div.innerHTML = `
+            <div class="task-checkbox ${todo.completed ? 'checked' : ''}" onclick="toggleTodo(${todo.id})">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <polyline points="20,6 9,17 4,12"></polyline>
+                </svg>
+            </div>
+            <span class="task-text">${escapeHtml(todo.text)}</span>
+            <div class="task-actions">
+                <button class="task-btn delete-btn" onclick="deleteTodo(${todo.id})">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3,6 5,6 21,6"></polyline>
+                        <path d="m19,6v14a2,2 0 0 1 -2,2H7a2,2 0 0 1 -2,-2V6m3,0V4a2,2 0 0 1 2,-2h4a2,2 0 0 1 2,2v2"></path>
+                    </svg>
                 </button>
             </div>
         `;
         
-        todoList.appendChild(li);
+        todoList.appendChild(div);
     });
 }
 
@@ -121,8 +184,25 @@ function updateStats() {
     const totalTasks = todos.length;
     const completedTasks = todos.filter(todo => todo.completed).length;
     
-    document.getElementById('totalTasks').textContent = `total: ${totalTasks}`;
-    document.getElementById('completedTasks').textContent = `done: ${completedTasks}`;
+    document.getElementById('totalTasks').textContent = totalTasks;
+    document.getElementById('completedTasks').textContent = completedTasks;
+}
+
+function updateEmptyState() {
+    const emptyState = document.getElementById('emptyState');
+    const taskList = document.getElementById('todoList');
+    
+    if (todos.length === 0) {
+        emptyState.style.display = 'flex';
+        taskList.style.display = 'none';
+    } else {
+        emptyState.style.display = 'none';
+        taskList.style.display = 'flex';
+    }
+}
+
+function focusInput() {
+    document.getElementById('todoInput').focus();
 }
 
 function saveTodos() {
@@ -145,7 +225,13 @@ document.addEventListener('keydown', function(e) {
     }
     
     if (e.key === 'Escape') {
-        document.getElementById('todoInput').value = '';
-        document.getElementById('todoInput').blur();
+        const input = document.getElementById('todoInput');
+        input.value = '';
+        input.blur();
+    }
+    
+    if (e.key === '/' && !document.activeElement.matches('input')) {
+        e.preventDefault();
+        document.getElementById('todoInput').focus();
     }
 });
