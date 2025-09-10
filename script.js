@@ -1,12 +1,10 @@
 let todos = JSON.parse(localStorage.getItem('todos')) || [];
 let todoIdCounter = parseInt(localStorage.getItem('todoIdCounter')) || 0;
 
-// Initialize the app
 document.addEventListener('DOMContentLoaded', function() {
     renderTodos();
     updateStats();
     
-    // Add event listener for Enter key in input field
     document.getElementById('todoInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             addTodo();
@@ -19,7 +17,7 @@ function addTodo() {
     const todoText = input.value.trim();
     
     if (todoText === '') {
-        alert('Please enter a task!');
+        alert('please enter a task');
         return;
     }
     
@@ -37,7 +35,6 @@ function addTodo() {
     renderTodos();
     updateStats();
     
-    // Add a small animation effect
     const todoList = document.getElementById('todoList');
     const lastItem = todoList.lastElementChild;
     if (lastItem) {
@@ -61,7 +58,7 @@ function toggleTodo(id) {
 }
 
 function deleteTodo(id) {
-    if (confirm('Are you sure you want to delete this task?')) {
+    if (confirm('delete this task?')) {
         todos = todos.filter(todo => todo.id !== id);
         saveTodos();
         renderTodos();
@@ -73,11 +70,11 @@ function clearCompleted() {
     const completedCount = todos.filter(todo => todo.completed).length;
     
     if (completedCount === 0) {
-        alert('No completed tasks to clear!');
+        alert('no completed tasks to clear');
         return;
     }
     
-    if (confirm(`Are you sure you want to clear ${completedCount} completed task(s)?`)) {
+    if (confirm(`clear ${completedCount} completed tasks?`)) {
         todos = todos.filter(todo => !todo.completed);
         saveTodos();
         renderTodos();
@@ -90,11 +87,10 @@ function renderTodos() {
     todoList.innerHTML = '';
     
     if (todos.length === 0) {
-        todoList.innerHTML = '<li style="text-align: center; color: #666; font-style: italic; padding: 20px;">No tasks yet. Add one above!</li>';
+        todoList.innerHTML = '<li style="text-align: center; color: #666; font-style: italic; padding: 20px;">no tasks yet, add one above</li>';
         return;
     }
     
-    // Sort todos: incomplete first, then completed
     const sortedTodos = [...todos].sort((a, b) => {
         if (a.completed && !b.completed) return 1;
         if (!a.completed && b.completed) return -1;
@@ -109,10 +105,10 @@ function renderTodos() {
             <span class="todo-text">${escapeHtml(todo.text)}</span>
             <div class="todo-actions">
                 <button class="complete-btn" onclick="toggleTodo(${todo.id})">
-                    ${todo.completed ? 'Undo' : 'Complete'}
+                    ${todo.completed ? 'undo' : 'done'}
                 </button>
                 <button class="delete-btn" onclick="deleteTodo(${todo.id})">
-                    Delete
+                    delete
                 </button>
             </div>
         `;
@@ -125,8 +121,8 @@ function updateStats() {
     const totalTasks = todos.length;
     const completedTasks = todos.filter(todo => todo.completed).length;
     
-    document.getElementById('totalTasks').textContent = `Total: ${totalTasks}`;
-    document.getElementById('completedTasks').textContent = `Completed: ${completedTasks}`;
+    document.getElementById('totalTasks').textContent = `total: ${totalTasks}`;
+    document.getElementById('completedTasks').textContent = `done: ${completedTasks}`;
 }
 
 function saveTodos() {
@@ -143,24 +139,13 @@ function escapeHtml(unsafe) {
         .replace(/'/g, "&#039;");
 }
 
-// Add some keyboard shortcuts
 document.addEventListener('keydown', function(e) {
-    // Ctrl/Cmd + Enter to add todo
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         addTodo();
     }
     
-    // Escape to clear input
     if (e.key === 'Escape') {
         document.getElementById('todoInput').value = '';
         document.getElementById('todoInput').blur();
     }
 });
-
-// Welcome message for first-time users
-if (todos.length === 0 && !localStorage.getItem('hasVisited')) {
-    setTimeout(() => {
-        alert('Welcome to your To-Do List! 🎉\n\nTips:\n• Press Enter to quickly add tasks\n• Tasks are automatically saved\n• Use Complete/Undo to mark progress\n• Clear completed tasks when done');
-        localStorage.setItem('hasVisited', 'true');
-    }, 1000);
-}
